@@ -15,11 +15,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
 
-    // ========================================================
-    // FIX: Forzar el idioma español antes de crear la Activity.
-    // Esto evita que el launcher y la interfaz nativa se
-    // muestren en chino (idioma por defecto del proyecto).
-    // ========================================================
+    // Fuerza el idioma español para los menús nativos
     override fun attachBaseContext(newBase: Context) {
         val locale = Locale("es")
         Locale.setDefault(locale)
@@ -35,6 +31,7 @@ class MainActivity : AppCompatActivity() {
 
         webView = findViewById(R.id.webView)
 
+        // Configuración del navegador interno
         val settings = webView.settings
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
@@ -48,14 +45,11 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
 
-        // IMPORTANTE: NO borres "{{APP_URL}}", el workflow
-        // de GitHub Actions lo reemplaza automáticamente
-        // con la URL que escribas en el formulario.
+        // Carga la URL (NO BORRES LAS LLAVES DOBLES, GitHub las reemplaza por ti)
         webView.loadUrl("{{APP_URL}}")
     }
 
-    // Permite que el botón "atrás" del móvil navegue por el
-    // historial de la web en lugar de cerrar la app.
+    // Permite usar el botón "atrás" del móvil para navegar por la web
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
             webView.goBack()
