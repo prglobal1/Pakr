@@ -1,28 +1,31 @@
 name: Build APK
+
 on:
   workflow_dispatch:
     inputs:
       app_url:
-        description: Target URL
+        description: 'Target URL'
         required: true
       app_name:
-        description: App Name
+        description: 'App Name'
         required: true
       package_name:
-        description: Package Name
+        description: 'Package Name'
         required: true
       version_name:
-        description: Version Name
+        description: 'Version Name'
         required: true
-        default: 1.0.0
+        default: '1.0.0'
       icon_url:
-        description: Icon Image URL (optional, leave empty to use repo logo.jpg)
+        description: 'Icon Image URL (optional, leave empty to use repo logo.jpg)'
         required: false
         default: ''
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     steps:
       - uses: actions/checkout@v4
 
@@ -34,6 +37,8 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: '' # <-- CORRECCIÓN: Evita el error del paquete 'tools' eliminado
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -66,7 +71,6 @@ jobs:
           app_name = os.environ['IN_APP_NAME']
           pkg = os.environ['IN_PACKAGE_NAME']
           ver = os.environ['IN_VERSION_NAME']
-
           parts = (ver.split('.') + ['0', '0', '0'])[:3]
           try:
               vc = int(parts[0]) * 10000 + int(parts[1]) * 100 + int(parts[2])
@@ -80,16 +84,13 @@ jobs:
 
           pkg_path = pkg.replace('.', '/')
           os.makedirs(f'app/src/main/java/{pkg_path}', exist_ok=True)
-
           kt_dir = 'app/src/main/java/com/webviewapp'
           for fname in os.listdir(kt_dir):
               if fname.endswith('.kt'):
                   fpath = os.path.join(kt_dir, fname)
                   replace_in_file(fpath, {'package com.webviewapp': f'package {pkg}'})
                   os.rename(fpath, os.path.join(f'app/src/main/java/{pkg_path}', fname))
-
           replace_in_file('app/src/main/res/layout/activity_main.xml', {'com.webviewapp': pkg})
-
           print(f"PKG_PATH is: {pkg_path}")
           PY
 
@@ -97,7 +98,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import base64, os
-          png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAAWUlEQVR4nO3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfgx1lAABqFDyOQAAAABJRU5ErkJggg==')
+          png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAAWUlEQVR4nO3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfgx1lAABqFDyOQAAAAABJRU5ErkJggg==')
           for density in ['mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi']:
               base = f'app/src/main/res/mipmap-{density}'
               os.makedirs(base, exist_ok=True)
@@ -136,6 +137,7 @@ jobs:
             KEY_ALIAS="debugkey"
             KEY_PASS="android"
           fi
+
           BUILD_TOOLS=$(ls $ANDROID_HOME/build-tools/ | sort -V | tail -1)
           SAFE=$(printf '%s' "$IN_APP_NAME" | tr -c 'A-Za-z0-9_-' '_')
           VER="$IN_VERSION_NAME"
@@ -150,11 +152,12 @@ jobs:
             [ -z "$ABI" ] && continue
             OUT="/tmp/signed/${SAFE}_${VER}_${ABI}.apk"
             $ANDROID_HOME/build-tools/$BUILD_TOOLS/zipalign -v -p 4 "$APK" /tmp/aligned_${ABI}.apk
-            $ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner sign               --ks /tmp/release.keystore --ks-pass "pass:$KS_PASS"               --ks-key-alias "$KEY_ALIAS" --key-pass "pass:$KEY_PASS"               --out "$OUT" /tmp/aligned_${ABI}.apk
+            $ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner sign --ks /tmp/release.keystore --ks-pass "pass:$KS_PASS" --ks-key-alias "$KEY_ALIAS" --key-pass "pass:$KEY_PASS" --out "$OUT" /tmp/aligned_${ABI}.apk
             $ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner verify "$OUT"
             echo "Signed: $OUT"
             FOUND=1
           done < <(find app/build -type f \( -name '*arm64-v8a*release*.apk' -o -name '*armeabi-v7a*release*.apk' -o -path '*/release/*arm64-v8a*.apk' -o -path '*/release/*armeabi-v7a*.apk' \) 2>/dev/null)
+
           if [ "$FOUND" -ne 1 ]; then
             echo "No split ABI APKs found" >&2
             exit 1
@@ -162,6 +165,7 @@ jobs:
           ls -la /tmp/signed/
           echo "SIGNED_DIR=/tmp/signed" >> $GITHUB_ENV
           echo "APK_NAME=${SAFE}_${VER}" >> $GITHUB_ENV
+
       - name: Upload arm64 APK
         uses: actions/upload-artifact@v4
         with:
